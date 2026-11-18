@@ -983,14 +983,13 @@ propagateAllocTokenMetadata(Function *CalledFunc, CallBase &CB,
     // Skip calls simplified during inlining; propagation may be incorrect.
     if (InlinedFunctionInfo.isSimplified(OrigCall, ClonedCall))
       continue;
-    // Fill missing only: never overwrite a more specific token the wrapper
-    // already set on an internal allocation. An unknown type (empty type name
-    // with function name) is not more specific.
-    if (MDNode *MD = ClonedCall->getMetadata(LLVMContext::MD_alloc_token)) {
-      if (MD->getNumOperands() != 3 ||
-          !cast<MDString>(MD->getOperand(0))->getString().empty())
-        continue;
-    }
+    // The call site sees more context than the wrapper body, so its token
+    // overrides one the wrapper set on the allocation, unless the call site's
+    // denotes an unknown type (empty type name with function name).
+    if (ClonedCall->getMetadata(LLVMContext::MD_alloc_token) &&
+        AllocTokenMD->getNumOperands() == 3 &&
+        cast<MDString>(AllocTokenMD->getOperand(0))->getString().empty())
+      continue;
     ClonedCall->setMetadata(LLVMContext::MD_alloc_token, AllocTokenMD);
   }
 }
